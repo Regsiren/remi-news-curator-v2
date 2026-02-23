@@ -6,12 +6,13 @@ import requests
 from flask import Flask
 from anthropic import Anthropic
 
-# --- 1. GLOBAL APP DEFINITION ---
+# --- 1. GLOBAL APP DEFINITION (Essential for Railway/Gunicorn) ---
 app = Flask(__name__)
 
 @app.route('/')
 def home():
-    return "Remi's News Fleet: ACTIVE AND SCOUTING", 200
+    # This acts as a health check so Railway knows the bot is alive
+    return "Remi's News Curator: SYSTEM ONLINE", 200
 
 # --- 2. THE CURATOR LOGIC ---
 def run_curator():
@@ -39,7 +40,7 @@ def run_curator():
             messages=[{"role": "user", "content": prompt}]
         )
         
-        # Convert text to HTML for Beehiiv
+        # Format the content into HTML for Beehiiv
         draft_content = msg.content[0].text.replace('\n', '<br>')
         formatted_html = f"<h3>Strategic Briefing</h3><p>{draft_content}</p>"
 
@@ -65,15 +66,15 @@ def run_curator():
             print(f"✅ SUCCESS: Draft created in Beehiiv (Code: {res.status_code})")
         else:
             print(f"❌ ERROR: Beehiiv rejected the post. Code: {res.status_code}")
-            print(f"Reason: {res.text}")
+            print(f"Response text: {res.text}")
 
     except Exception as e:
-        print(f"❌ CRITICAL ERROR: {str(e)}")
+        print(f"❌ CRITICAL ERROR in curator: {str(e)}")
 
 # --- 3. THE BACKGROUND SCHEDULER ---
 def scheduler():
-    print("⏳ Scheduler initialized. Waiting for stability...")
-    time.sleep(15) 
+    print("⏳ Scheduler initialized. Waiting 30s for server stability...")
+    time.sleep(30) 
     while True:
         try:
             print("🚀 Executing scheduled daily news scan...")
@@ -84,9 +85,10 @@ def scheduler():
             print(f"Error in scheduler: {e}")
             time.sleep(600)
 
-# Start the background work immediately
+# Start the background work as a separate thread
 threading.Thread(target=scheduler, daemon=True).start()
 
 if __name__ == "__main__":
+    # Use Railway's port or default to 8080
     port = int(os.environ.get("PORT", 8080))
     app.run(host='0.0.0.0', port=port)
