@@ -8,59 +8,74 @@ from anthropic import Anthropic
 
 app = Flask(__name__)
 
-# --- CONFIGURATION ---
+# --- CONFIGURATION (Ensure these are in your Railway Variables) ---
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
-TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN") # Must be the long API Token string
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
 def send_telegram(message):
-    """Sends the briefing with a plain-text fallback for safety."""
+    """Sends the briefing with a formatted Plain-Text fallback."""
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-    
-    # Try sending with HTML first
     payload = {"chat_id": TELEGRAM_CHAT_ID, "text": message, "parse_mode": "HTML"}
     res = requests.post(url, json=payload)
     
-    # Fallback: If Telegram rejects the HTML, send as plain text
     if res.status_code != 200:
-        print(f"⚠️ HTML failed, stripping tags. Reason: {res.text}")
+        # Fallback: Strip HTML tags and send as plain text
         clean_text = message.replace("<b>", "").replace("</b>", "").replace("<br>", "\n")
         payload["text"] = clean_text
-        payload.pop("parse_mode") # Remove HTML mode
+        payload.pop("parse_mode")
         requests.post(url, json=payload)
-        print("✅ SUCCESS: Plain-text briefing delivered.")
+        print("✅ SUCCESS: Plain-text fallback delivered.")
     else:
         print("✅ SUCCESS: HTML briefing delivered.")
 
 @app.route('/')
 def home():
-    return "Intelligence Feed: ACTIVE", 200
+    return "Intelligence Hub: ACTIVE", 200
 
 @app.route('/run')
 def manual_run():
     threading.Thread(target=run_curator).start()
-    return "<h1>Briefing Triggered</h1><p>Check Telegram in 10-15 seconds.</p>", 200
+    return "<h1>Intelligence Triggered</h1><p>Check Telegram in 15 seconds.</p>", 200
 
 def run_curator():
     try:
-        print("🔍 STEP 1: Scanning UK feeds...")
-        feeds = ["https://techcrunch.com/feed/", "https://www.cityam.com/feed/"]
+        print("🔍 STEP 1: Scanning Strategic UK Sources...")
+        feeds = {
+            "Finance": "https://www.bankofengland.co.uk/rss/news",
+            "Property": "https://propertyindustryeye.com/feed/",
+            "Business": "https://www.cityam.com/feed/"
+        }
+        
         all_news = ""
-        for url in feeds:
+        for cat, url in feeds.items():
             f = feedparser.parse(url)
             for entry in f.entries[:2]:
-                all_news += f"Title: {entry.title}\nLink: {entry.link}\n\n"
+                all_news += f"[{cat}] {entry.title}\nLink: {entry.link}\n\n"
 
-        print("🧠 STEP 2: Claude 4.6 generating Briefing...")
+        print("🧠 STEP 2: Claude 4.6 synthesizing Decision Intelligence...")
         client = Anthropic(api_key=ANTHROPIC_API_KEY)
         
-        # Explicit instruction to only use Telegram-supported tags
+        # PROMPT UPGRADE: Focused on 2026 Blindspots and Table generation
         msg = client.messages.create(
             model="claude-sonnet-4-6",
-            max_tokens=1000,
+            max_tokens=1500,
             messages=[{
                 "role": "user", 
-                "content": f"Summarise these headlines for a UK Director into 3 insights. Use ONLY <b> tags for headers and <br> for new lines. No other tags allowed:\n\n{all_news}"
+                "content": f"""Summarise these headlines for a UK Director. 
+                Structure for maximum 'stickiness' and authority:
+
+                1. 🏛 THE BOARDROOM BRIEF: One sentence explaining 'Why this matters today'.
+                2. 🔍 TOP 3 STRATEGIC DRILLS:
+                   - DRILL A: THE REFINANCING GATE. Focus on Private Credit vs Bank Debt (Base rate: 3.75%).
+                   - DRILL B: GOVERNANCE SHOCKS. Focus on ACSP registration and Companies House 'Personal Codes'.
+                   - DRILL C: THE RENTER'S RIGHTS PIVOT. Impact of Section 21 abolition on yield.
+                3. 📊 DECISION MATRIX:
+                   Create a text-based table with headers: | SECTOR | RISK LEVEL | ACTION |
+                
+                Keep HTML limited to <b> and <br>. No other tags.
+                NEWS FEED:
+                {all_news}"""
             }]
         )
         
@@ -71,6 +86,7 @@ def run_curator():
         print(f"❌ ERROR: {str(e)}")
 
 def scheduler():
+    """Daily Pulse: Runs every 24 hours."""
     time.sleep(15)
     while True:
         run_curator()
