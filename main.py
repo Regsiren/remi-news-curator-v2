@@ -6,15 +6,14 @@ import requests
 from flask import Flask
 from anthropic import Anthropic
 
-# --- THIS IS THE LINE GUNICORN IS LOOKING FOR ---
+# --- 1. GLOBAL APP DEFINITION (Essential for Railway/Gunicorn) ---
 app = Flask(__name__)
 
-# --- THE HEARTBEAT ---
 @app.route('/')
 def home():
-    return "Remi's News Curator is Active", 200
+    return "Remi's Boardroom Intelligence Bot: ONLINE", 200
 
-# --- THE BOT LOGIC ---
+# --- 2. THE CURATOR LOGIC ---
 def run_curator():
     try:
         print("🔍 STEP 1: Scanning UK & Tech feeds...")
@@ -33,12 +32,14 @@ def run_curator():
             f"RAW NEWS:\n{all_news}"
         )
         
+        # Using the most stable 2026 model alias
         msg = client.messages.create(
-            model="claude-3-5-sonnet-20241022",
+            model="claude-3-5-sonnet-latest",
             max_tokens=1000,
             messages=[{"role": "user", "content": prompt}]
         )
         
+        # Convert text to HTML for Beehiiv
         draft_content = msg.content[0].text.replace('\n', '<br>')
         formatted_html = f"<h3>Strategic Briefing</h3><p>{draft_content}</p>"
 
@@ -54,7 +55,7 @@ def run_curator():
         
         payload = {
             "title": f"Boardroom Intelligence: {time.strftime('%d %b %Y')}",
-            "body": formatted_html,
+            "body": formatted_html, 
             "status": "draft"
         }
         
@@ -69,23 +70,24 @@ def run_curator():
     except Exception as e:
         print(f"❌ CRITICAL ERROR in curator: {str(e)}")
 
+# --- 3. THE BACKGROUND SCHEDULER ---
 def scheduler():
-    """Background task: Runs once at startup, then every 24 hours."""
     print("⏳ Scheduler initialized. Waiting for stability...")
-    time.sleep(30) # Short wait for server to settle
+    time.sleep(30) 
     while True:
         try:
             print("🚀 Executing scheduled daily news scan...")
             run_curator()
+            print("✅ Scan complete. Next run in 24 hours.")
             time.sleep(86400) # 24 hours
         except Exception as e:
             print(f"Error in scheduler: {e}")
             time.sleep(600)
 
-# --- START THE BACKGROUND THREAD ---
+# Start the background work as a separate thread
 threading.Thread(target=scheduler, daemon=True).start()
 
 if __name__ == "__main__":
-    # This block is only used if you run the script manually
+    # Use Railway's port or default to 8080
     port = int(os.environ.get("PORT", 8080))
     app.run(host='0.0.0.0', port=port)
