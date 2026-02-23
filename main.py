@@ -10,20 +10,11 @@ app = Flask(__name__)
 
 @app.route('/')
 def home():
-    return "Remi's News Fleet: ACTIVE AND DIAGNOSING", 200
+    return "Remi's News Fleet: ACTIVE AND BROADCASTING", 200
 
 def run_curator():
     try:
         client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
-        
-        # --- STRATEGIC DIAGNOSTIC: LIST AVAILABLE MODELS ---
-        print("🔍 DIAGNOSTIC: Fetching available models for your API key...")
-        try:
-            models = client.models.list()
-            model_list = [m.id for m in models.data]
-            print(f"✅ Your Account Can See: {model_list}")
-        except Exception as e:
-            print(f"⚠️ Could not list models: {e}")
 
         # 1. Fetch News
         print("🔍 STEP 1: Scanning UK & Tech feeds...")
@@ -34,9 +25,8 @@ def run_curator():
             for entry in f.entries[:3]:
                 all_news += f"Title: {entry.title}\nLink: {entry.link}\n\n"
 
-        # 2. AI Summarization (2026 Model Selection)
-        # Using the standard 3.5 Sonnet alias for 2026
-        target_model = "claude-3-5-sonnet-latest" 
+        # 2. AI Summarization (Using your confirmed 2026 Model ID)
+        target_model = "claude-sonnet-4-6" 
         print(f"🧠 STEP 2: Asking {target_model} for the Briefing...")
         
         msg = client.messages.create(
@@ -58,7 +48,11 @@ def run_curator():
             "body": formatted_html,
             "status": "draft"
         })
-        print(f"✅ SUCCESS: Beehiiv Status {res.status_code}")
+        
+        if res.status_code in [200, 201]:
+            print(f"✅ SUCCESS: Beehiiv Status {res.status_code}")
+        else:
+            print(f"❌ BEEHIIV ERROR: {res.status_code} - {res.text}")
 
     except Exception as e:
         print(f"❌ CRITICAL ERROR: {str(e)}")
@@ -68,7 +62,8 @@ def scheduler():
     time.sleep(15)
     while True:
         run_curator()
-        time.sleep(86400) # 24 hours
+        print("✅ Daily scan complete. Sleeping for 24 hours.")
+        time.sleep(86400)
 
 threading.Thread(target=scheduler, daemon=True).start()
 
