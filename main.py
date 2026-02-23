@@ -8,8 +8,7 @@ from anthropic import Anthropic
 
 app = Flask(__name__)
 
-# --- 1. CONFIGURATION ---
-# Ensure these are set in your Railway 'Variables' tab.
+# --- CONFIGURATION ---
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
@@ -22,7 +21,7 @@ def send_telegram(message):
     try:
         res = requests.post(url, json=payload)
         if res.status_code != 200:
-            # If HTML fails (common with complex tables), strip tags and send plain text
+            # Fallback: Strip HTML tags and send plain text
             print(f"⚠️ Telegram HTML rejection. Reason: {res.text}")
             clean_text = message.replace("<b>", "").replace("</b>", "").replace("<br>", "\n")
             payload["text"] = f"--- System Note: Formatting Refined ---\n\n{clean_text}"
@@ -81,7 +80,7 @@ def run_curator():
         {raw_content}"""
 
         msg = client.messages.create(
-            model="claude-3-5-sonnet-20241022", # Updated to current Sonnet for reliability
+            model="claude-3-5-sonnet-latest", # FIXED: Using the latest stable model identifier
             max_tokens=1500,
             messages=[{"role": "user", "content": prompt}]
         )
