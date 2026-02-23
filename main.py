@@ -14,14 +14,14 @@ TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
 def send_telegram(message):
-    """Delivers the briefing with a sophisticated fallback."""
+    """Delivers the briefing with an elegant fallback for readability."""
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
     payload = {"chat_id": TELEGRAM_CHAT_ID, "text": message, "parse_mode": "HTML"}
     
     try:
         res = requests.post(url, json=payload)
         if res.status_code != 200:
-            # Fallback: Strip HTML tags if Telegram's strict parser rejects them
+            # Fallback if HTML is too complex
             clean_text = message.replace("<b>", "").replace("</b>", "").replace("<br>", "\n")
             payload["text"] = f"--- Refined Executive Briefing ---\n\n{clean_text}"
             payload.pop("parse_mode")
@@ -37,11 +37,12 @@ def home():
 def manual_run():
     """Trigger a fresh briefing immediately."""
     threading.Thread(target=run_curator).start()
-    return "<h1>Intelligence Dispatched</h1><p>Your update is being synthesized by the Chief of Staff.</p>", 200
+    return "<h1>Intelligence Dispatched</h1><p>The Chief of Staff is synthesizing your update.</p>", 200
 
 def run_curator():
     """The core intelligence engine."""
     try:
+        print("🔍 STEP 1: Scanning Strategic Sources...")
         feeds = {
             "Finance": "https://www.bankofengland.co.uk/rss/news",
             "Property": "https://propertyindustryeye.com/feed/",
@@ -54,36 +55,37 @@ def run_curator():
             for entry in f.entries[:2]:
                 raw_content += f"[{cat}] {entry.title}\n"
 
+        print("🧠 STEP 2: Synthesizing with Claude 4.6...")
         client = Anthropic(api_key=ANTHROPIC_API_KEY)
         
-        # Persona: Chief of Staff | Tone: British, Astute, and Narrative
+        # PERSONA: Chief of Staff | TONE: Astute, British, Peer-to-Peer
         prompt = f"""You are Remi's Chief of Staff. Review these headlines for a strategic UK Director.
         
-        TONE: Sophisticated, astute, and British. Avoid cold 'metallic' corporate-speak. Use a narrative flow.
+        TONE: Sophisticated, astute, and British. Avoid cold, 'metallic' corporate-speak. Use narrative flow.
         
         STRUCTURE:
         1. ☕ THE MORNING TAKE: A warm but sharp overview of the current landscape.
         2. 🧭 NAVIGATING THE NOISE: 
-           Connect news to 2026 priorities:
-           - The Private Credit shift as the €500B refinancing wall looms.
-           - Personal liability for Directors under new ACSP rules.
-           - Impact of the May 2026 Renters' Rights Act on yield protection.
-        3. 📊 THE PERSPECTIVE MATRIX: A clean summary: | Sector | Sentiment | Recommended Stance |
+           Connect news to 2026 boardroom priorities:
+           - The €500B refinancing wall and the pivot to Private Credit.
+           - Director liability under new Companies House ACSP compliance.
+           - Yield protection strategies for the May 2026 Renters' Rights Act.
+        3. 📊 THE PERSPECTIVE MATRIX: A clean text table: | Sector | Sentiment | Recommended Stance |
 
         Use ONLY <b> and <br> tags.
         NEWS DATA: {raw_content}"""
 
         msg = client.messages.create(
-            model="claude-sonnet-4-6", # UPDATED: The active Feb 2026 model ID
+            model="claude-sonnet-4-6", # UPDATED FEB 2026 MODEL ID
             max_tokens=1500,
             messages=[{"role": "user", "content": prompt}]
         )
         
         briefing = f"<b>🏛 BOARDROOM INTELLIGENCE</b><br><br>{msg.content[0].text}"
         send_telegram(briefing)
+        print("✅ SUCCESS: Intelligence delivered.")
 
     except Exception as e:
-        # Send error to Telegram for immediate visibility
         send_telegram(f"⚠️ Chief of Staff Note: Intelligence brief paused. Error: {str(e)}")
 
 def scheduler():
