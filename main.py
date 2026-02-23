@@ -14,14 +14,14 @@ TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
 def send_telegram(message):
-    """Delivers the brief with a sophisticated plain-text fallback."""
+    """Delivers the briefing with a sophisticated fallback."""
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
     payload = {"chat_id": TELEGRAM_CHAT_ID, "text": message, "parse_mode": "HTML"}
     
     try:
         res = requests.post(url, json=payload)
         if res.status_code != 200:
-            # Fallback if HTML is too complex for Telegram's parser
+            # Fallback: Strip HTML tags if Telegram's strict parser rejects them
             clean_text = message.replace("<b>", "").replace("</b>", "").replace("<br>", "\n")
             payload["text"] = f"--- Refined Executive Briefing ---\n\n{clean_text}"
             payload.pop("parse_mode")
@@ -35,9 +35,9 @@ def home():
 
 @app.route('/run')
 def manual_run():
-    """Trigger a fresh briefing immediately via browser."""
+    """Trigger a fresh briefing immediately."""
     threading.Thread(target=run_curator).start()
-    return "<h1>Intelligence Dispatched</h1><p>Your boardroom update is on its way.</p>", 200
+    return "<h1>Intelligence Dispatched</h1><p>Your update is being synthesized by the Chief of Staff.</p>", 200
 
 def run_curator():
     """The core intelligence engine."""
@@ -56,25 +56,25 @@ def run_curator():
 
         client = Anthropic(api_key=ANTHROPIC_API_KEY)
         
-        # PROMPT: Shifting to a narrative, British, 'Chief of Staff' persona
-        prompt = f"""You are Remi's Chief of Staff. Review these headlines and provide a private briefing.
+        # Persona: Chief of Staff | Tone: British, Astute, and Narrative
+        prompt = f"""You are Remi's Chief of Staff. Review these headlines for a strategic UK Director.
         
-        TONE: Sophisticated, astute, and British. Avoid cold, 'metallic' corporate-speak. Use narrative flow.
+        TONE: Sophisticated, astute, and British. Avoid cold 'metallic' corporate-speak. Use a narrative flow.
         
         STRUCTURE:
         1. ☕ THE MORNING TAKE: A warm but sharp overview of the current landscape.
         2. 🧭 NAVIGATING THE NOISE: 
-           Connect the news to these 2026 executive priorities:
+           Connect news to 2026 priorities:
            - The Private Credit shift as the €500B refinancing wall looms.
-           - Personal liability risks for Directors under new ACSP rules.
-           - Impact of the Renters' Rights Act (May 2026) on portfolio stability.
-        3. 📊 THE PERSPECTIVE MATRIX: A clean text-based summary: | Sector | Sentiment | Recommended Stance |
+           - Personal liability for Directors under new ACSP rules.
+           - Impact of the May 2026 Renters' Rights Act on yield protection.
+        3. 📊 THE PERSPECTIVE MATRIX: A clean summary: | Sector | Sentiment | Recommended Stance |
 
         Use ONLY <b> and <br> tags.
         NEWS DATA: {raw_content}"""
 
         msg = client.messages.create(
-            model="claude-sonnet-4-6", # UPDATED: The stable 2026 identifier
+            model="claude-sonnet-4-6", # UPDATED: The active Feb 2026 model ID
             max_tokens=1500,
             messages=[{"role": "user", "content": prompt}]
         )
@@ -83,10 +83,11 @@ def run_curator():
         send_telegram(briefing)
 
     except Exception as e:
-        send_telegram(f"System Note: Briefing paused due to {str(e)}")
+        # Send error to Telegram for immediate visibility
+        send_telegram(f"⚠️ Chief of Staff Note: Intelligence brief paused. Error: {str(e)}")
 
 def scheduler():
-    """The 24-hour pulse."""
+    """Daily pulse: runs every 24 hours."""
     time.sleep(15) 
     while True:
         run_curator()
