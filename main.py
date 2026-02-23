@@ -6,19 +6,17 @@ import requests
 from flask import Flask
 from anthropic import Anthropic
 
-# --- 1. GLOBAL APP DEFINITION (Essential for Railway/Gunicorn) ---
+# --- 1. GLOBAL APP DEFINITION ---
 app = Flask(__name__)
 
 @app.route('/')
 def home():
-    # This allows you to check the URL and see the bot is alive
     return "Remi's Boardroom Intelligence Bot: ONLINE", 200
 
 # --- 2. THE CURATOR LOGIC ---
 def run_curator():
     try:
         print("🔍 STEP 1: Scanning UK & Tech feeds...")
-        # Curating from TechCrunch and City A.M. for boardroom signals
         feeds = ["https://techcrunch.com/feed/", "https://www.cityam.com/feed/"]
         all_news = ""
         for url in feeds:
@@ -34,9 +32,9 @@ def run_curator():
             f"RAW NEWS:\n{all_news}"
         )
         
-        # Using a stable 2026 Model ID to prevent 404 errors
+        # Using a highly stable model ID to avoid the 404 error
         msg = client.messages.create(
-            model="claude-3-5-sonnet-20241022",
+            model="claude-3-sonnet-20240229",
             max_tokens=1000,
             messages=[{"role": "user", "content": prompt}]
         )
@@ -67,14 +65,13 @@ def run_curator():
             print(f"✅ SUCCESS: Draft created in Beehiiv (Code: {res.status_code})")
         else:
             print(f"❌ ERROR: Beehiiv rejected the post. Code: {res.status_code}")
-            print(f"Response details: {res.text}")
+            print(f"Response text: {res.text}")
 
     except Exception as e:
         print(f"❌ CRITICAL ERROR in curator: {str(e)}")
 
 # --- 3. THE BACKGROUND SCHEDULER ---
 def scheduler():
-    """Background task: Wait 30s for server stability, then run daily."""
     print("⏳ Scheduler initialized. Waiting for stability...")
     time.sleep(30) 
     while True:
@@ -85,13 +82,11 @@ def scheduler():
             time.sleep(86400) # 24 hours
         except Exception as e:
             print(f"Error in scheduler: {e}")
-            # If it fails, wait 10 mins and try again
             time.sleep(600)
 
-# Start the background work as a separate thread so Flask can stay active
+# Start the background work
 threading.Thread(target=scheduler, daemon=True).start()
 
 if __name__ == "__main__":
-    # Use Railway's port or default to 8080
     port = int(os.environ.get("PORT", 8080))
     app.run(host='0.0.0.0', port=port)
