@@ -1,16 +1,16 @@
 def run_curator():
     try:
         # 1. Fetch News
-        print("🔍 Scanning UK & Tech feeds...")
+        print("🔍 STEP 1: Scanning UK & Tech feeds...")
         feeds = ["https://techcrunch.com/feed/", "https://www.cityam.com/feed/"]
         all_news = ""
         for url in feeds:
             f = feedparser.parse(url)
-            for entry in f.entries[:3]: # Increased to top 3 for better depth
+            for entry in f.entries[:3]:
                 all_news += f"Source: {url.split('.')[1].upper()}\nTitle: {entry.title}\nLink: {entry.link}\n\n"
 
         # 2. AI Summarization (Claude 4.5)
-        print("🧠 Asking Claude to draft the Boardroom Briefing...")
+        print("🧠 STEP 2: Asking Claude to draft the Boardroom Briefing...")
         client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
         prompt = (
             "You are a Strategic Advisor. Summarise these headlines into 3 key boardroom "
@@ -29,7 +29,7 @@ def run_curator():
         formatted_html = f"<h3>Strategic Briefing</h3><p>{draft_content}</p>"
 
         # 3. Post to Beehiiv
-        print("📨 Sending draft to Beehiiv...")
+        print("📨 STEP 3: Sending draft to Beehiiv...")
         pub_id = os.getenv("BEEHIIV_PUB_ID")
         key = os.getenv("BEEHIIV_API_KEY")
         url = f"https://api.beehiiv.com/v2/publications/{pub_id}/posts"
@@ -41,7 +41,7 @@ def run_curator():
         
         payload = {
             "title": f"Boardroom Intelligence: {time.strftime('%d %b %Y')}",
-            "body": formatted_html, # FIXED: Changed from body_content to body
+            "body": formatted_html, # THE FIX: Changed from body_content to body
             "status": "draft"
         }
         
@@ -51,7 +51,7 @@ def run_curator():
             print(f"✅ SUCCESS: Draft created in Beehiiv (Code: {res.status_code})")
         else:
             print(f"❌ ERROR: Beehiiv rejected the post. Code: {res.status_code}")
-            print(f"Response text: {res.text}") # This tells us EXACTLY why if it fails
+            print(f"Response text: {res.text}")
 
     except Exception as e:
-        print(f"❌ CRITICAL ERROR in curator: {str(e)}")
+        print(f"❌ CRITICAL ERROR: {str(e)}")
