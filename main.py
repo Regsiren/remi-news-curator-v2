@@ -6,13 +6,12 @@ import requests
 from flask import Flask
 from anthropic import Anthropic
 
-# --- 1. GLOBAL APP DEFINITION (Essential for Railway/Gunicorn) ---
+# --- 1. GLOBAL APP DEFINITION ---
 app = Flask(__name__)
 
 @app.route('/')
 def home():
-    # This acts as a health check so Railway knows the bot is alive
-    return "Remi's News Curator: SYSTEM ONLINE", 200
+    return "Remi's News Fleet: ACTIVE AND SCOUTING", 200
 
 # --- 2. THE CURATOR LOGIC ---
 def run_curator():
@@ -27,20 +26,15 @@ def run_curator():
 
         print("🧠 STEP 2: Asking Claude to draft the Boardroom Briefing...")
         client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
-        prompt = (
-            "You are a Strategic Advisor. Summarise these headlines into 3 key boardroom "
-            "insights for a UK-based Director. Focus on opportunities and risks.\n\n"
-            f"RAW NEWS:\n{all_news}"
-        )
         
-        # Using HAIKU: The most compatible and accessible model for all API tiers
+        # Using HAIKU: The most compatible and accessible model for all tiers
         msg = client.messages.create(
             model="claude-3-haiku-20240307", 
             max_tokens=1000,
-            messages=[{"role": "user", "content": prompt}]
+            messages=[{"role": "user", "content": "You are a Strategic Advisor. Summarise these headlines for a UK-based Director:\n\n" + all_news}]
         )
         
-        # Format the content into HTML for Beehiiv
+        # Convert text to HTML for Beehiiv
         draft_content = msg.content[0].text.replace('\n', '<br>')
         formatted_html = f"<h3>Strategic Briefing</h3><p>{draft_content}</p>"
 
@@ -49,11 +43,7 @@ def run_curator():
         key = os.getenv("BEEHIIV_API_KEY")
         url = f"https://api.beehiiv.com/v2/publications/{pub_id}/posts"
         
-        headers = {
-            "Authorization": f"Bearer {key}",
-            "Content-Type": "application/json"
-        }
-        
+        headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
         payload = {
             "title": f"Boardroom Intelligence: {time.strftime('%d %b %Y')}",
             "body": formatted_html, 
@@ -61,34 +51,26 @@ def run_curator():
         }
         
         res = requests.post(url, headers=headers, json=payload)
-        
-        if res.status_code in [201, 200]:
-            print(f"✅ SUCCESS: Draft created in Beehiiv (Code: {res.status_code})")
-        else:
-            print(f"❌ ERROR: Beehiiv rejected the post. Code: {res.status_code}")
-            print(f"Response text: {res.text}")
+        print(f"✅ Beehiiv Response: {res.status_code}")
 
     except Exception as e:
-        print(f"❌ CRITICAL ERROR in curator: {str(e)}")
+        print(f"❌ CRITICAL ERROR: {str(e)}")
 
 # --- 3. THE BACKGROUND SCHEDULER ---
 def scheduler():
-    print("⏳ Scheduler initialized. Waiting 30s for server stability...")
-    time.sleep(30) 
+    print("⏳ Waiting for initial server stability (15s)...")
+    time.sleep(15) 
     while True:
         try:
-            print("🚀 Executing scheduled daily news scan...")
             run_curator()
-            print("✅ Scan complete. Next run in 24 hours.")
             time.sleep(86400) # 24 hours
         except Exception as e:
-            print(f"Error in scheduler: {e}")
+            print(f"Error: {e}")
             time.sleep(600)
 
-# Start the background work as a separate thread
+# Start the bot thread
 threading.Thread(target=scheduler, daemon=True).start()
 
 if __name__ == "__main__":
-    # Use Railway's port or default to 8080
     port = int(os.environ.get("PORT", 8080))
     app.run(host='0.0.0.0', port=port)
