@@ -1,5 +1,5 @@
 flask
-gunicorn
 requests
-feedparser
 anthropic
+feedparser
+gunicorn
