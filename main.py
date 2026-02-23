@@ -27,7 +27,7 @@ def run_curator():
         print("🧠 STEP 2: Asking Claude (Haiku) to draft the Briefing...")
         client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
         
-        # Using HAIKU: The most compatible and accessible model for all API tiers
+        # Using HAIKU: The most compatible and accessible model for all tiers
         msg = client.messages.create(
             model="claude-3-haiku-20240307", 
             max_tokens=1000,
@@ -43,7 +43,7 @@ def run_curator():
         
         headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
         payload = {
-            "title": f"Boardroom Intelligence: {time.strftime('%d %b %Y')}",
+            "title": f"Boardroom Intel: {time.strftime('%d %b %Y')}",
             "body": formatted_html, 
             "status": "draft"
         }
