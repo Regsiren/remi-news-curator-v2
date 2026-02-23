@@ -42,7 +42,7 @@ def run_curator():
     headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
     payload = {
         "title": "Strategic Briefing: " + time.strftime("%d %b %Y"),
-        "body_content": content_html,
+        "body": content_html,
         "status": "draft"
     }
     
