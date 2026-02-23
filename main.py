@@ -40,14 +40,40 @@ def manual_run():
     return "<h1>Intelligence Dispatched</h1><p>The Chief of Staff is synthesizing your update.</p>", 200
 
 def run_curator():
-    """The core intelligence engine."""
     try:
-        print("🔍 STEP 1: Scanning Strategic Sources...")
-        feeds = {
-            "Finance": "https://www.bankofengland.co.uk/rss/news",
-            "Property": "https://propertyindustryeye.com/feed/",
-            "London Business": "https://www.cityam.com/feed/"
-        }
+        # (Feeds remain the same)
+        feeds = {"Finance": "...", "Property": "...", "Business": "..."}
+        raw_content = "..." # (Logic to pull news)
+
+        client = Anthropic(api_key=ANTHROPIC_API_KEY)
+        
+        # PROMPT: Requesting both a Telegram Brief AND a Beehiiv Draft
+        prompt = f"""You are Remi's Chief of Staff. Review these headlines:
+        {raw_content}
+
+        Produce TWO distinct outputs:
+        
+        OUTPUT 1 (TELEGRAM BRIEF): 
+        A short, astute 3-sentence summary for my mobile. Use <b> and <br>.
+
+        OUTPUT 2 (BEEHIIV DRAFT):
+        A full newsletter draft. Use H1 for titles (#), H2 for sections (##), and bullet points (-) for insights. 
+        Focus on: Private Credit trends, ACSP compliance for Directors, and Renters' Rights (May 2026).
+        Format this so I can copy-paste it directly into a Beehiiv editor.
+        """
+
+        msg = client.messages.create(
+            model="claude-sonnet-4-6",
+            max_tokens=2500,
+            messages=[{"role": "user", "content": prompt}]
+        )
+        
+        # Dispatching both to your Telegram
+        send_telegram(msg.content[0].text)
+        print("✅ SUCCESS: Dual Briefings delivered.")
+
+    except Exception as e:
+        send_telegram(f"⚠️ Error: {str(e)}")
         
         raw_content = ""
         for cat, url in feeds.items():
