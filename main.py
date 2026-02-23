@@ -1,6 +1,22 @@
+import os
+import threading
+import time
+import feedparser
+import requests
+from flask import Flask
+from anthropic import Anthropic
+
+# --- THIS IS THE LINE GUNICORN IS LOOKING FOR ---
+app = Flask(__name__)
+
+# --- THE HEARTBEAT ---
+@app.route('/')
+def home():
+    return "Remi's News Curator is Active", 200
+
+# --- THE BOT LOGIC ---
 def run_curator():
     try:
-        # 1. Fetch News
         print("🔍 STEP 1: Scanning UK & Tech feeds...")
         feeds = ["https://techcrunch.com/feed/", "https://www.cityam.com/feed/"]
         all_news = ""
@@ -9,7 +25,6 @@ def run_curator():
             for entry in f.entries[:3]:
                 all_news += f"Source: {url.split('.')[1].upper()}\nTitle: {entry.title}\nLink: {entry.link}\n\n"
 
-        # 2. AI Summarization (Claude 4.5)
         print("🧠 STEP 2: Asking Claude to draft the Boardroom Briefing...")
         client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
         prompt = (
@@ -24,11 +39,9 @@ def run_curator():
             messages=[{"role": "user", "content": prompt}]
         )
         
-        # Format the content into HTML for Beehiiv
         draft_content = msg.content[0].text.replace('\n', '<br>')
         formatted_html = f"<h3>Strategic Briefing</h3><p>{draft_content}</p>"
 
-        # 3. Post to Beehiiv
         print("📨 STEP 3: Sending draft to Beehiiv...")
         pub_id = os.getenv("BEEHIIV_PUB_ID")
         key = os.getenv("BEEHIIV_API_KEY")
@@ -41,7 +54,7 @@ def run_curator():
         
         payload = {
             "title": f"Boardroom Intelligence: {time.strftime('%d %b %Y')}",
-            "body": formatted_html, # THE FIX: Changed from body_content to body
+            "body": formatted_html,
             "status": "draft"
         }
         
@@ -54,4 +67,25 @@ def run_curator():
             print(f"Response text: {res.text}")
 
     except Exception as e:
-        print(f"❌ CRITICAL ERROR: {str(e)}")
+        print(f"❌ CRITICAL ERROR in curator: {str(e)}")
+
+def scheduler():
+    """Background task: Runs once at startup, then every 24 hours."""
+    print("⏳ Scheduler initialized. Waiting for stability...")
+    time.sleep(30) # Short wait for server to settle
+    while True:
+        try:
+            print("🚀 Executing scheduled daily news scan...")
+            run_curator()
+            time.sleep(86400) # 24 hours
+        except Exception as e:
+            print(f"Error in scheduler: {e}")
+            time.sleep(600)
+
+# --- START THE BACKGROUND THREAD ---
+threading.Thread(target=scheduler, daemon=True).start()
+
+if __name__ == "__main__":
+    # This block is only used if you run the script manually
+    port = int(os.environ.get("PORT", 8080))
+    app.run(host='0.0.0.0', port=port)
