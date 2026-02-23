@@ -11,7 +11,7 @@ app = Flask(__name__)
 
 @app.route('/')
 def home():
-    return "Remi's Boardroom Intelligence Bot: ONLINE", 200
+    return "Remi's News Fleet: ACTIVE AND SCOUTING", 200
 
 # --- 2. THE CURATOR LOGIC ---
 def run_curator():
@@ -32,9 +32,9 @@ def run_curator():
             f"RAW NEWS:\n{all_news}"
         )
         
-        # Using a highly stable model ID to avoid the 404 error
+        # Using HAIKU: The most compatible and accessible model for all API tiers
         msg = client.messages.create(
-            model="claude-3-sonnet-20240229",
+            model="claude-3-haiku-20240307", 
             max_tokens=1000,
             messages=[{"role": "user", "content": prompt}]
         )
@@ -65,15 +65,15 @@ def run_curator():
             print(f"✅ SUCCESS: Draft created in Beehiiv (Code: {res.status_code})")
         else:
             print(f"❌ ERROR: Beehiiv rejected the post. Code: {res.status_code}")
-            print(f"Response text: {res.text}")
+            print(f"Reason: {res.text}")
 
     except Exception as e:
-        print(f"❌ CRITICAL ERROR in curator: {str(e)}")
+        print(f"❌ CRITICAL ERROR: {str(e)}")
 
 # --- 3. THE BACKGROUND SCHEDULER ---
 def scheduler():
     print("⏳ Scheduler initialized. Waiting for stability...")
-    time.sleep(30) 
+    time.sleep(15) 
     while True:
         try:
             print("🚀 Executing scheduled daily news scan...")
@@ -84,7 +84,7 @@ def scheduler():
             print(f"Error in scheduler: {e}")
             time.sleep(600)
 
-# Start the background work
+# Start the background work immediately
 threading.Thread(target=scheduler, daemon=True).start()
 
 if __name__ == "__main__":
