@@ -38,7 +38,7 @@ def manual_run():
     return "<h1>Dual Briefing Dispatched</h1><p>Telegram summary and Beehiiv draft are being synthesized.</p>", 200
 
 def run_curator():
-    """The dual-output intelligence engine."""
+    """The dual-output engine with split-message delivery."""
     try:
         print("🔍 STEP 1: Scanning Strategic Sources...")
         feeds = {
@@ -46,6 +46,51 @@ def run_curator():
             "Property": "https://propertyindustryeye.com/feed/",
             "London Business": "https://www.cityam.com/feed/"
         }
+        
+        raw_content = ""
+        for cat, url in feeds.items():
+            f = feedparser.parse(url)
+            for entry in f.entries[:2]:
+                raw_content += f"[{cat}] {entry.title}\n"
+
+        print("🧠 STEP 2: Claude 4.6 generating Dual Briefings...")
+        client = Anthropic(api_key=ANTHROPIC_API_KEY)
+        
+        # PROMPT: Asking for two separate blocks we can split easily
+        prompt = f"""You are Remi's Chief of Staff. Review these headlines:
+        {raw_content}
+
+        Produce TWO distinct outputs separated by the word 'SPLIT_HERE':
+        
+        OUTPUT 1 (TELEGRAM BRIEF): 
+        A sophisticated 3-sentence summary for mobile. Use <b> and <br> tags.
+
+        SPLIT_HERE
+
+        OUTPUT 2 (BEEHIIV DRAFT):
+        A full newsletter draft in clean Markdown for copy-pasting. 
+        Focus on: Private Credit trends, ACSP compliance for Directors, and Renters' Rights (May 2026).
+        """
+
+        msg = client.messages.create(
+            model="claude-sonnet-4-6",
+            max_tokens=3000,
+            messages=[{"role": "user", "content": prompt}]
+        )
+        
+        # --- THE FIX: SPLIT AND SEND SEPARATELY ---
+        full_response = msg.content[0].text
+        parts = full_response.split('SPLIT_HERE')
+        
+        for part in parts:
+            if part.strip():
+                send_telegram(part.strip())
+                time.sleep(1) # Small pause to ensure correct order
+
+        print("✅ SUCCESS: Both parts delivered separately.")
+
+    except Exception as e:
+        send_telegram(f"⚠️ Error: {str(e)}")
         
         raw_content = ""
         for cat, url in feeds.items():
