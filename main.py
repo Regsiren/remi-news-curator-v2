@@ -13,16 +13,15 @@ ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
-def send_telegram(message):
-    """Sends briefings with a sophisticated fallback for complex Markdown/HTML."""
+def send_telegram(message, mode="HTML"):
+    """Precision delivery: Sends as HTML or Markdown depending on the content."""
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-    # We send as HTML for Telegram formatting, but fallback to plain text for the Beehiiv Markdown
-    payload = {"chat_id": TELEGRAM_CHAT_ID, "text": message, "parse_mode": "HTML"}
+    payload = {"chat_id": TELEGRAM_CHAT_ID, "text": message, "parse_mode": mode}
     
     try:
         res = requests.post(url, json=payload)
+        # Fallback: If formatting fails, send as plain text so you at least get the data
         if res.status_code != 200:
-            # Fallback for the long Beehiiv Markdown draft
             payload.pop("parse_mode")
             requests.post(url, json=payload)
     except Exception as e:
@@ -35,12 +34,10 @@ def home():
 @app.route('/run')
 def manual_run():
     threading.Thread(target=run_curator).start()
-    return "<h1>Dual Briefing Dispatched</h1><p>Telegram summary and Beehiiv draft are being synthesized.</p>", 200
+    return "<h1>Dual Briefing Dispatched</h1><p>Check Telegram for your Brief and Beehiiv Draft.</p>", 200
 
 def run_curator():
-    """The dual-output engine with split-message delivery."""
     try:
-        print("🔍 STEP 1: Scanning Strategic Sources...")
         feeds = {
             "Finance": "https://www.bankofengland.co.uk/rss/news",
             "Property": "https://propertyindustryeye.com/feed/",
@@ -53,80 +50,49 @@ def run_curator():
             for entry in f.entries[:2]:
                 raw_content += f"[{cat}] {entry.title}\n"
 
-        print("🧠 STEP 2: Claude 4.6 generating Dual Briefings...")
         client = Anthropic(api_key=ANTHROPIC_API_KEY)
         
-        # PROMPT: Asking for two separate blocks we can split easily
         prompt = f"""You are Remi's Chief of Staff. Review these headlines:
         {raw_content}
 
-        Produce TWO distinct outputs separated by the word 'SPLIT_HERE':
+        Produce TWO distinct outputs separated by '---SPLIT---':
         
-        OUTPUT 1 (TELEGRAM BRIEF): 
-        A sophisticated 3-sentence summary for mobile. Use <b> and <br> tags.
+        PART 1 (The Telegram Brief): 
+        A sophisticated 3-sentence summary for mobile. Use <b> and <br> tags correctly for bold and lines. 
+        DO NOT include the words 'PART 1' or 'TELEGRAM BRIEF'.
 
-        SPLIT_HERE
+        ---SPLIT---
 
-        OUTPUT 2 (BEEHIIV DRAFT):
-        A full newsletter draft in clean Markdown for copy-pasting. 
+        PART 2 (The Beehiiv Draft):
+        A full newsletter draft in clean Markdown (# for headers, - for bullets). 
         Focus on: Private Credit trends, ACSP compliance for Directors, and Renters' Rights (May 2026).
+        DO NOT include the words 'PART 2' or 'BEEHIIV DRAFT'.
         """
 
         msg = client.messages.create(
             model="claude-sonnet-4-6",
-            max_tokens=3000,
+            max_tokens=3500,
             messages=[{"role": "user", "content": prompt}]
         )
         
-        # --- THE FIX: SPLIT AND SEND SEPARATELY ---
         full_response = msg.content[0].text
-        parts = full_response.split('SPLIT_HERE')
+        parts = full_response.split('---SPLIT---')
         
-        for part in parts:
-            if part.strip():
-                send_telegram(part.strip())
-                time.sleep(1) # Small pause to ensure correct order
+        # --- PART 1: MOBILE BRIEF (HTML) ---
+        if len(parts) > 0:
+            brief = "🏛 <b>BOARDROOM INTELLIGENCE</b><br><br>" + parts[0].strip()
+            send_telegram(brief, mode="HTML")
+            
+        # --- PART 2: BEEHIIV DRAFT (MARKDOWN) ---
+        if len(parts) > 1:
+            time.sleep(2) # Prevent message collision
+            draft = "✍️ <b>BEEHIIV DRAFT (Copy & Paste)</b>\n\n" + parts[1].strip()
+            send_telegram(draft, mode="Markdown")
 
-        print("✅ SUCCESS: Both parts delivered separately.")
+        print("✅ SUCCESS: Dual dispatch complete.")
 
     except Exception as e:
-        send_telegram(f"⚠️ Error: {str(e)}")
-        
-        raw_content = ""
-        for cat, url in feeds.items():
-            f = feedparser.parse(url)
-            for entry in f.entries[:2]:
-                raw_content += f"[{cat}] {entry.title}\n"
-
-        print("🧠 STEP 2: Claude 4.6 generating Dual Briefings...")
-        client = Anthropic(api_key=ANTHROPIC_API_KEY)
-        
-        prompt = f"""You are Remi's Chief of Staff. Review these headlines:
-        {raw_content}
-
-        Produce TWO distinct outputs in ONE message:
-        
-        OUTPUT 1 (TELEGRAM BRIEF): 
-        A sophisticated 3-sentence summary for mobile. Use <b> and <br> tags only.
-
-        OUTPUT 2 (BEEHIIV DRAFT):
-        A full newsletter draft. Use H1 for titles (#), H2 for sections (##), and bullet points (-) for insights. 
-        Focus on: Private Credit trends, ACSP compliance for Directors, and Renters' Rights (May 2026).
-        Format this as clean Markdown so I can copy-paste it directly into a Beehiiv editor.
-        """
-
-        msg = client.messages.create(
-            model="claude-sonnet-4-6",
-            max_tokens=2500,
-            messages=[{"role": "user", "content": prompt}]
-        )
-        
-        # Delivering the complete package
-        send_telegram(msg.content[0].text)
-        print("✅ SUCCESS: Dual Briefings delivered.")
-
-    except Exception as e:
-        send_telegram(f"⚠️ Error: {str(e)}")
+        send_telegram(f"⚠️ Curator Error: {str(e)}", mode=None)
 
 # (Scheduler remains 24h)
 def scheduler():
